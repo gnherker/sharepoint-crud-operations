@@ -62,6 +62,7 @@ export default function Test(props) {
       })
       .catch(err => console.log(err));
   }
+
   useEffect(() => {
     getFormDigest();
   }, []);

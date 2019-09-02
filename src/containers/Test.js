@@ -17,7 +17,6 @@ export default function Test(props) {
   const [orderBy, setOrderBy] = useState("Title");
   const [order, setOrder] = useState("asc");
 
-
   function getFormDigest() {
     fetch(
       "http://localhost:8080/_api/contextinfo",

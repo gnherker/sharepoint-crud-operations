@@ -12,6 +12,7 @@ export default function Test(props) {
   const [data, setData] = useState();
   const [strAddItem, setStrAddItem] = useState('');
   const [strUpdateItem, setStrUpdateItem] = useState('');
+  const [attachment, setAttachment] = useState();
 
   // const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(5);
@@ -177,6 +178,29 @@ export default function Test(props) {
       .catch(err => console.log(err));
   }
 
+  const handleAddAttchmentFile = (id) => {
+    fetch(
+      `${siteUrl}(${id})/AttachmentFiles/add(FileName='${attachment.name}')`,
+      {
+        method: "POST",
+        body: JSON.stringify(attachment),
+        headers: {
+          "X-RequestDigest": formDigest,
+          "Accept": "application/json;odata=verbose",
+          "Content-Type": "application/json;odata=verbose",
+        },
+      })
+      .then(r => {
+        console.log(r)
+        fetchData();
+      })
+      .catch(err => console.log(err));
+  }
+
+  const handleChangeFile = (e) => {
+    setAttachment(e.target.files[0]);
+  }
+
   const handleLoadMore = () => {
     setTopItems(prevState => prevState + limit)
   }
@@ -190,16 +214,21 @@ export default function Test(props) {
   }
 
   return (
-    <div>
-      <div>
+    <div style={{ margin: '50px' }}>
+      <div style={{ margin: '20px' }}>
+        <label>input add item</label>
         <input type='text' onChange={handleChangeText} value={strAddItem} />
         <button onClick={addItemHandle}>ADD ITEM</button>
       </div>
-      <div>
+      <div style={{ margin: '20px' }}>
+        <label>add file</label>
+        <input type='file' onChange={handleChangeFile} />
+      </div>
+      <div style={{ margin: '20px' }}>
         <label>input update</label>
         <input type='text' onChange={handleChangeTextUpdate} value={strUpdateItem} />
       </div>
-      <div>
+      <div style={{ margin: '20px' }}>
         filter
       <input type='text' onChange={handleChangeFilter} />
       </div>
@@ -209,6 +238,7 @@ export default function Test(props) {
             <span style={{ marginRight: '50px' }}>{key.Title}</span>
             <button onClick={() => handleUpdate(key.Id)}>UPDATE</button>
             <button onClick={() => handleDelete(key.Id)}>REMOVE</button>
+            <button onClick={() => handleAddAttchmentFile(key.Id)}>upload file</button>
             <div>
               {/* {console.log(key.AttachmentFiles.results)} */}
               {key.AttachmentFiles.results.length > 0 &&

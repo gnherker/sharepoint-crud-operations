@@ -6,13 +6,16 @@ import { setTimeout } from 'timers';
 export default function Test(props) {
   const listName = "Areas";
   // "http://localhost:8080": "https://herkersistemas.sharepoint.com/sites/gec"
-  const siteUrl = "http://localhost:8080/_api/web/lists/getbytitle('" + listName + "')/items";
+  const siteUrl = `http://localhost:8080/_api/web/lists/getbytitle('${listName}')/items`;
 
   const [formDigest, setFormDigest] = useState();
   const [data, setData] = useState();
+  const [strAddItem, setStrAddItem] = useState('');
+  const [strUpdateItem, setStrUpdateItem] = useState('');
 
-  const [page, setPage] = useState(0);
+  // const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(5);
+  const [topItems, setTopItems] = useState(5);
   const [searchText, setSearchText] = useState("");
   const [orderBy, setOrderBy] = useState("Title");
   const [order, setOrder] = useState("asc");
@@ -43,10 +46,11 @@ export default function Test(props) {
       siteUrl +
       "?$select=Title,ID,Attachments,AttachmentFiles" +
       "&$expand=AttachmentFiles" +
-      "&$top=" + limit +
+      "&$top=" + topItems +
+      // "&$top=" + limit +
       "&$orderby=" + orderBy + " " + order +
-      querySeachText +
-      "&$skiptoken=" + encodeURIComponent("Paged=TRUE&p_ID=" + page + "")
+      querySeachText
+      // "&$skiptoken=" + encodeURIComponent("Paged=TRUE&p_ID=" + page + "")
       ,
       {
         method: "GET",
@@ -69,7 +73,7 @@ export default function Test(props) {
 
   useEffect(() => {
     fetchData();
-  }, [page, searchText]);
+  }, [topItems, searchText]);
 
   const addItemHandle = () => {
     console.log(listName, formDigest);
@@ -77,34 +81,37 @@ export default function Test(props) {
       siteUrl,
       {
         method: "POST",
-        body: {
+        body: JSON.stringify({
           '__metadata': {
-            type: `SP.Data.${listName}ListItem`
+            'type': `SP.Data.${listName}ListItem`
           },
-          'Title': 'Test asdlakjsd'
-        },
+          'Title': strAddItem
+        }),
         headers: {
-          // "Authorization": "Bearer " + accessToken,
           "X-RequestDigest": formDigest,
           "Accept": "application/json;odata=verbose",
           "Content-Type": "application/json;odata=verbose",
-          // "Content-Length": '1',
         },
       })
-      .then(r => console.log(r))
+      .then(r => {
+        console.log(r)
+        setStrAddItem('');
+        fetchData();
+      })
       .catch(err => console.log(err));
 
   }
 
   const handleChangeFilter = async (e) => {
     setSearchText(e.target.value);
+    setTopItems(limit);
   }
 
   const handlePageClick = (num) => {
-    setPage(prevState => {
-      console.log(limit, prevState, prevState + (+num * limit));
-      return prevState + (+num * limit)
-    });
+    // setPage(prevState => {
+    //   console.log(limit, prevState, prevState + (+num * limit));
+    //   return prevState + (+num * limit)
+    // });
   }
 
   const handleUpdate = (id) => {
@@ -112,23 +119,23 @@ export default function Test(props) {
       `${siteUrl}(${id})`,
       {
         method: "POST",
-        body: {
-          '__metadata': {
-            type: `SP.Data.${listName}ListItem`
+        body: JSON.stringify({
+          "__metadata": {
+            "type": `SP.Data.${listName}ListItem`
           },
-          'Title': 'Test Update'
-        },
+          "Title": strUpdateItem,
+        }),
         headers: {
           "X-RequestDigest": formDigest,
           "IF-MATCH": "*",
           "X-HTTP-Method": "MERGE",
           "Accept": "application/json;odata=verbose",
           "Content-Type": "application/json;odata=verbose",
-          // "Content-Length": 2,
         },
       })
       .then(r => {
         console.log(r)
+        setStrUpdateItem('');
         fetchData();
       })
       .catch(err => console.log(err));
@@ -152,10 +159,46 @@ export default function Test(props) {
       .catch(err => console.log(err));
   }
 
+  const handleDeleteAttchmentFile = (id, fileName) => {
+    fetch(
+      `${siteUrl}(${id})/AttachmentFiles/getByFileName('${fileName}')`,
+      {
+        method: "POST",
+        headers: {
+          "X-RequestDigest": formDigest,
+          "IF-MATCH": "*",
+          "X-HTTP-Method": "DELETE",
+        },
+      })
+      .then(r => {
+        console.log(r)
+        fetchData();
+      })
+      .catch(err => console.log(err));
+  }
+
+  const handleLoadMore = () => {
+    setTopItems(prevState => prevState + limit)
+  }
+
+  const handleChangeText = (e) => {
+    setStrAddItem(e.target.value);
+  }
+
+  const handleChangeTextUpdate = (e) => {
+    setStrUpdateItem(e.target.value);
+  }
+
   return (
     <div>
-      <input type='text' />
-      <button onClick={addItemHandle}>ADD ITEM</button>
+      <div>
+        <input type='text' onChange={handleChangeText} value={strAddItem} />
+        <button onClick={addItemHandle}>ADD ITEM</button>
+      </div>
+      <div>
+        <label>input update</label>
+        <input type='text' onChange={handleChangeTextUpdate} value={strUpdateItem} />
+      </div>
       <div>
         filter
       <input type='text' onChange={handleChangeFilter} />
@@ -163,12 +206,11 @@ export default function Test(props) {
       <ul>
         {data && data.map(key => (
           <li key={key.Title}>
-            {key.Title}
-            <input type='text' />
+            <span style={{ marginRight: '50px' }}>{key.Title}</span>
             <button onClick={() => handleUpdate(key.Id)}>UPDATE</button>
             <button onClick={() => handleDelete(key.Id)}>REMOVE</button>
             <div>
-              {console.log(key.AttachmentFiles.results)}
+              {/* {console.log(key.AttachmentFiles.results)} */}
               {key.AttachmentFiles.results.length > 0 &&
                 key.AttachmentFiles.results.map(attach => {
                   console.log(attach)
@@ -176,14 +218,16 @@ export default function Test(props) {
                     <div key={key.Id + attach.FileName}>
                       <label>{attach.FileName}</label>
                       <button onClick={() => window.open('https://herkersistemas.sharepoint.com' + attach.ServerRelativeUrl)}>download file</button>
+                      <button onClick={() => handleDeleteAttchmentFile(key.Id, attach.FileName)}>delete file</button>
                     </div>
                   )
                 })}
             </div>
           </li>
         ))}
-        <button onClick={() => handlePageClick(-1)}>{'<'}</button>
-        <button onClick={() => handlePageClick(1)}>{'>'}</button>
+        {/* <button onClick={() => handlePageClick(-1)}>{'<'}</button>
+        <button onClick={() => handlePageClick(1)}>{'>'}</button> */}
+        <button onClick={() => handleLoadMore()}>load more</button>
       </ul>
     </div>
   )
